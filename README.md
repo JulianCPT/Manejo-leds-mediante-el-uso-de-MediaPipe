@@ -34,6 +34,24 @@ básico para aprender y familiarizarse con **MediaPipe**.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:0F2027,100:203A43&height=3&section=header" width="100%"/>
 
+## 📑 Contenido
+
+- [🖐️ Gestos y comportamiento del LED](#️-gestos-y-comportamiento-del-led)
+- [📸 Capturas](#-capturas)
+- [🎥 Video de funcionamiento](#-video-de-funcionamiento)
+- [📐 Arquitectura general](#-arquitectura-general)
+- [📁 Estructura del repositorio](#-estructura-del-repositorio)
+- [⚙️ Requisitos](#️-requisitos) (librerías de Python, hardware y librerías del firmware)
+- [▶️ Cómo correrlo](#️-cómo-correrlo)
+- [📡 Protocolo de comunicación](#-protocolo-de-comunicación)
+- [🧩 Explicación del código, bloque por bloque](#-explicación-del-código-bloque-por-bloque)
+- [🧠 Conceptos clave](#-conceptos-clave)
+- [🛠️ Solución de problemas](#️-solución-de-problemas)
+- [🔒 Nota de privacidad](#-nota-de-privacidad)
+- [👤 Autor](#-autor)
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:0F2027,100:203A43&height=3&section=header" width="100%"/>
+
 ## 🖐️ Gestos y comportamiento del LED
 
 <div align="center">
@@ -115,37 +133,24 @@ básico para aprender y familiarizarse con **MediaPipe**.
 
 ## 📐 Arquitectura general
 
-```
-📷  Cámara web
-        │  frames
-        ▼
-┌──────────────────────────────┐
-│   gesture_control.py  (PC)   │
-│                              │
-│  1️⃣  OpenCV captura, voltea  │
-│      y convierte BGR → RGB   │
-│                              │
-│  2️⃣  MediaPipe reconoce el   │
-│      gesto de la mano        │
-│                              │
-│  3️⃣  Se busca el comando     │
-│      asociado al gesto       │
-└──────────────┬───────────────┘
-               │ Puerto serie (USB) — ej. "I30\n"
-               ▼
-┌──────────────────────────────┐
-│           ESP32              │
-│      (esp32_firmware.ino)    │
-│  procesarComando()           │
-│  ledcWrite() → PWM en GPIO 2 │
-└──────────────┬───────────────┘
-               ▼
-              💡 LED
-```
+<div align="center">
+
+![Diagrama de arquitectura: usuario, cámara, gesture_control.py (OpenCV, MediaPipe, lógica), puerto serie, ESP32 y LED](docs/im%C3%A1genes/diagrama-arquitectura.svg)
+
+</div>
+
+| Símbolo | Significado |
+|:---:|:---|
+| **→** | Relación de un solo sentido: los datos fluyen en esa dirección (por ejemplo, la ESP32 controla el LED, pero el LED no le "contesta" nada) |
+| 🟦 **Caja azul** | Programa de la PC (`gesture_control.py`) y sus tres etapas: OpenCV → MediaPipe → lógica de control |
+| 🟪 **Caja morada** | Archivo del modelo preentrenado (`gesture_recognizer.task`), que MediaPipe carga localmente |
+| 🟧 **Caja naranja** | Canal de comunicación: puerto serie USB a 115200 baudios |
+| 🟩 **Caja verde** | Actuador final: el LED |
 
 > 💡 **Idea clave:** la ESP32 **no reconoce gestos**. Toda la visión artificial vive en la
-> PC. La ESP32 solo recibe comandos ya decididos y simples (`"I30"`, `"M1"`) por cable USB
-> y genera la señal PWM del LED.
+> PC (`gesture_control.py`). La ESP32 solo recibe comandos ya decididos y simples
+> (`"I30"`, `"M1"`) por cable USB y genera la señal PWM del LED. Esta separación mantiene
+> el firmware pequeño y deja el trabajo pesado en el computador.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:0F2027,100:203A43&height=3&section=header" width="100%"/>
 
@@ -155,10 +160,12 @@ básico para aprender y familiarizarse con **MediaPipe**.
 Manejo-leds-mediante-el-uso-de-MediaPipe/
 ├── gesture_control.py          # Programa principal en Python (PC)
 ├── gesture_recognizer.task     # Modelo preentrenado de MediaPipe
+├── requirements.txt            # Dependencias de Python
 ├── esp32_firmware/
 │   └── esp32_firmware.ino      # Firmware del ESP32
 ├── docs/                       # Capturas y video de demostración
 │   ├── imágenes/
+│   │   ├── diagrama-arquitectura.svg
 │   │   ├── Circuito Fisico.jpeg
 │   │   ├── Prueba Puño Cerrado.jpeg
 │   │   ├── Prueba Mano Paz.jpeg
@@ -181,25 +188,65 @@ Manejo-leds-mediante-el-uso-de-MediaPipe/
 
 - ✅ Python 3.10+
 - ✅ Una cámara web
-- ✅ Un ESP32 con:
-  - LED 💡 → resistencia (220 Ω – 330 Ω) → **GPIO 2**
-  - Cátodo del LED → GND
-- ✅ Arduino IDE con el paquete **esp32 by Espressif Systems v3.x**
+- ✅ Una ESP32 con un LED 💡 en serie con una resistencia de 220 Ω – 330 Ω, conectado al **GPIO 2** (el otro extremo del LED a GND)
+- ✅ Arduino IDE con el paquete de placas **esp32 by Espressif Systems v3.x**
 - ✅ Cable USB para conectar la ESP32 a la PC
 
 ```
 GPIO 2 ──▶ Resistencia (220–330 Ω) ──▶ LED (ánodo +) ──▶ LED (cátodo −) ──▶ GND
 ```
 
-**Instalar dependencias de Python:**
+**Instalación de dependencias de Python:**
 
 ```bash
-pip install opencv-python mediapipe pyserial
+pip install -r requirements.txt
 ```
 
 > ⚠️ El firmware usa la API de PWM de la versión **3.x** del paquete ESP32
 > (`ledcAttach()` y `ledcWrite(PIN, duty)`). Con la versión 2.x, basada en canales
 > (`ledcSetup()` + `ledcAttachPin()`), no compilará.
+
+### 📦 Librerías de Python: qué hacen y por qué se eligieron
+
+| Librería | Para qué sirve | Dónde se usa | Por qué esta y no otra |
+|:---|:---|:---|:---|
+| **OpenCV** (`opencv-python`) | Accede a la cámara web, captura cada frame, lo voltea, lo convierte de BGR a RGB y muestra la ventana con los textos de gesto, confianza y auto-apagado | `gesture_control.py` | Es el estándar para visión por computador en Python y maneja de forma directa la cámara y la ventana de video con `imshow()`. Además, MediaPipe está pensado para recibir imágenes como arreglos de NumPy, que es justo lo que entrega OpenCV |
+| **MediaPipe** (`mediapipe`) | Detecta la mano, ubica sus 21 puntos de referencia y clasifica el gesto usando el modelo preentrenado `gesture_recognizer.task` | `gesture_control.py` | Ya trae un modelo de gestos entrenado y listo (puño, palma, victoria, pulgares), así que no hace falta recolectar datos ni entrenar una red neuronal propia. Corre en tiempo real en una CPU normal y **de forma local**, sin enviar imágenes a internet |
+| **PySerial** (`pyserial`) | Abre el puerto serie (USB) hacia la ESP32, envía los comandos como bytes y lista los puertos disponibles (`serial.tools.list_ports`) | `gesture_control.py` | Es la librería estándar de Python para puertos serie y funciona igual en Windows, Linux y Mac. La comunicación por cable USB es más simple que montar WiFi o MQTT para un proyecto en el que la PC y la ESP32 están una al lado de la otra |
+| **time** (módulo estándar) | Mide los tiempos del debounce (1 s), del auto-apagado (3 s) y da la pausa de 2 s para el reinicio de la ESP32 al abrir el puerto | `gesture_control.py` | Viene incluido con Python; no requiere instalación |
+
+<details>
+<summary>Ver <code>requirements.txt</code> comentado</summary>
+
+```txt
+opencv-python>=4.8   # cámara, frames, conversión BGR→RGB y ventana de video (gesture_control.py)
+mediapipe>=0.10      # Gesture Recognizer: detecta la mano y clasifica el gesto (gesture_control.py)
+pyserial>=3.5        # puerto serie USB hacia la ESP32 (gesture_control.py)
+```
+
+</details>
+
+### 🔩 Hardware y librerías de Arduino (firmware de la ESP32)
+
+**Componentes físicos: qué son y por qué se eligieron**
+
+| Componente | Qué es | Por qué se eligió |
+|:---|:---|:---|
+| **ESP32** | Microcontrolador de doble núcleo con WiFi y Bluetooth integrados y muchos pines GPIO | Tiene hardware de **PWM (LEDC)** en casi todos sus pines, lo que permite regular el brillo del LED sin librerías externas, y una velocidad de sobra para recibir comandos por serie. Además, queda abierta la opción de agregarle WiFi más adelante |
+| **LED + resistencia** | Diodo emisor de luz que se enciende al circular corriente por él, protegido por una resistencia en serie | Es el actuador más simple para *ver* el resultado del PWM: el brillo cambia de forma visible entre 30 %, 70 % y 100 %. La resistencia (220–330 Ω) limita la corriente para no dañar ni el LED ni el pin |
+| **Cámara web** | Sensor de imagen conectado por USB a la PC | Es la "entrada" del sistema: sin hardware adicional ni sensores especiales, la misma cámara del computador alcanza para reconocer los gestos |
+
+**Librerías del firmware (`esp32_firmware.ino`): para qué sirven y por qué se usaron**
+
+| Librería / API | Para qué sirve | Por qué se usó |
+|:---|:---|:---|
+| `Serial` (core de Arduino) | Recibe los comandos de texto que envía la PC por USB (`Serial.begin(115200)`, `Serial.readStringUntil('\n')`) | Viene incluida en el core; es la forma más directa de comunicar la ESP32 con la PC. Debe usar los mismos baudios que `BAUD_RATE` en Python |
+| `ledcAttach()` / `ledcWrite()` (core ESP32 v3.x) | Configura y escribe la señal PWM del periférico **LEDC** de la ESP32 (5 kHz, 8 bits) | Es la API oficial de Espressif para PWM. No requiere instalar nada externo; en la versión 3.x se trabaja directamente sobre el pin, sin manejar "canales" aparte como en la 2.x |
+| `constrain()` y `map()` (funciones de Arduino) | Limitan el porcentaje al rango 0–100 y lo convierten en el duty cycle (0–255) | Evitan valores fuera de rango y traducen un porcentaje "humano" al valor que entiende el hardware, sin escribir la conversión a mano |
+
+> ℹ️ A diferencia de proyectos con WiFi o sensores, este firmware **no necesita instalar
+> ninguna librería adicional** desde el Gestor de librerías del Arduino IDE: solo el
+> paquete de placas de la ESP32.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:0F2027,100:203A43&height=3&section=header" width="100%"/>
 

@@ -1,0 +1,3 @@
+opencv-python>=4.8   # camara, frames, conversion BGR->RGB y ventana de video (gesture_control.py)
+mediapipe>=0.10      # Gesture Recognizer: detecta la mano y clasifica el gesto (gesture_control.py)
+pyserial>=3.5        # puerto serie USB hacia la ESP32 (gesture_control.py)
